@@ -22,6 +22,7 @@ I run it as a standalone script once I start xmms2.
 is started.  The only issue is the last.fm authentication the first
 time user runs the scrobbler, which must be done via a web browser.  I
 tried to launch "links" from the script, but it did not work for me.
-
 - Script goes to an infinite loop once `xmms2 quit` is executed.
+- Script does not work without `API_KEY` and `SECRET`. Not sure if I can share those.  Most likely I can because it's also present in the [rhythmbox scrobbler](https://git.gnome.org/browse/rhythmbox/tree/plugins/audioscrobbler/rb-audioscrobbler-service.c)
+
 
