@@ -1,174 +1,17 @@
 #!/usr/bin/perl -w
 #
-# XMMS2 last.fm scrobbler
-# http://www.last.fm/api/desktopauth
+# XMMS2 Last.fm scrobbler
+# http://www.last.fm/api/scrobbling
 #
 
-use LWP;
+use LastfmXmms2Scrobbler qw(debug);
 use Digest::MD5 qw(md5_hex);
 use Env qw(HOME);
 use Audio::XMMSClient;
-use Data::Dumper;
-use POSIX qw(strftime);
-use strict;
-
-use constant URL => 'http://ws.audioscrobbler.com/2.0/';
-use constant DIR => "$HOME/.cache/xmms2";
-use constant TOKENFILENAME => DIR . "/lastfmplugin.token";
-use constant SESSIONFILENAME => DIR . "/lastfmplugin.session";
-use constant LOGFILENAME => DIR . "/lastfmplugin.log";
-use constant API_KEY => "";
-use constant SECRET => "";
+#use Data::Dumper;
 
 my $browser = LWP::UserAgent->new;
 my %lastplayed = ( 'artist' => '', 'title' => '', 'album' => '', 'duration' => 0, 'started' => 0);
-my $token = "";
-my $sessionkey = "";
-my $debugfh;
-
-system("mkdir -p " . DIR) == 0 or die "Cannot create dir";
-
-sub debug
-{
-	if (1) {
-		my ($method, $text) = @_;
-
-		my $line = "-> " . strftime("%F %T", localtime) . " $method: $text\n";
-
-		if (!defined $debugfh) {
-			open($debugfh, ">>", LOGFILENAME) or die "Cannot open file " . LOGFILENAME . " for writing: $!";
-			select( (select($debugfh), $| = 1)[0] );
-		}
-
-		print $debugfh $line;
-		print $line;
-	}
-}
-
-sub writeToFile
-{
-	my ($name, $filename, $sessionkey) = @_;
-
-	debug($name, $sessionkey);
-
-	open (my $fh, ">$filename") or die "Cannot open file $filename for writing: $!";
-	print $fh $sessionkey;
-	close $fh;
-}
-
-sub writeTokenToFile
-{
-	writeToFile("writeTokenToFile", TOKENFILENAME, $_[0]);
-}
-
-sub writeSessionToFile
-{
-	writeToFile("writeSessionToFile", SESSIONFILENAME, $_[0]);
-}
-
-sub getFromFile
-{
-	my ($name, $filename) = @_;
-	my $fh;
-	unless(open ($fh, "<$filename")) {
-		debug($name, "");
-		return "";
-	}
-	my $token = <$fh>;
-	close $fh;
-	debug($name, $token);
-	return $token;
-}
-
-sub getTokenFromFile
-{
-	return getFromFile("getTokenFromFile", TOKENFILENAME);
-}
-
-sub getSessionFromFile
-{
-	return getFromFile("getSessionFromFile", SESSIONFILENAME);
-}
-
-sub getToken
-{
-	my $method = "auth.getToken";
-
-	debug($method, "enter");
-
-	my $api_sig = "";
-	$api_sig .= "api_key" . API_KEY;
-	$api_sig .= "method" . $method;
-	$api_sig .= SECRET;
-	$api_sig = md5_hex($api_sig);
-
-	my $response = $browser->post(URL,
-		[
-		'api_key' => API_KEY,
-		'api_sig' => $api_sig,
-		'method' => $method
-		],
-	);
-
-	debug($method, "Response: " . $response->content);
-	die "Error: " . $response->status_line unless $response->is_success;
-
-	$response->content =~ /<token>(.*)<\/token>/;
-	debug($method, $1);
-	return $1;
-}
-
-sub requestAuthorization
-{
-	print "Open a web browser and visit this URL: http://www.last.fm/api/auth/?api_key=" . API_KEY . "&token=$token\n";
-	print "Press Enter to continue\n";
-	<STDIN>;
-}
-
-# The successful answer is:
-#   <session>
-#       <name>somename</name>
-#       <key>6e6daca04fe050089179a8c543577ab3</key>
-#       <subscriber>0</subscriber>
-#   </session>
-#
-# Error:
-#   <error code="4">Invalid authentication token supplied</error>
-#
-sub getSession
-{
-	my $method = "auth.getSession";
-
-	debug($method, "enter");
-
-	my $api_sig = "";
-	$api_sig .= "api_key" . API_KEY;
-	$api_sig .= "method" . $method;
-	$api_sig .= "token" . $token;
-	$api_sig .= SECRET;
-	$api_sig = md5_hex($api_sig);
-
-	my $response = $browser->post(URL,
-		[
-		'token' => $token,
-		'api_key' => API_KEY,
-		'api_sig' => $api_sig,
-		'method' => $method
-		],
-	);
-
-	debug($method, "Response: " . $response->content);
-	if ($response->content =~ /<error code="(\d+)"/) {
-		my $error_code = $1;
-		return "$error_code";
-	}
-
-	die "Error: " . $response->status_line unless $response->is_success;
-
-	$response->content =~ /<key>(.*)<\/key>/;
-	debug($method, $1);
-	return $1;
-}
 
 sub updateNowPlaying
 {
@@ -179,22 +22,22 @@ sub updateNowPlaying
 
 	my $api_sig = "";
 	$api_sig .= "album" . $album;
-	$api_sig .= "api_key" . API_KEY;
+	$api_sig .= "api_key" . LastfmXmms2Scrobbler::API_KEY;
 	$api_sig .= "artist" . $artist;
 	$api_sig .= "method" . $method;
-	$api_sig .= "sk" . $sessionkey;
+	$api_sig .= "sk" . $LastfmXmms2Scrobbler::sessionkey;
 	$api_sig .= "track" . $track;
-	$api_sig .= SECRET;
+	$api_sig .= LastfmXmms2Scrobbler::SECRET;
 	$api_sig = md5_hex($api_sig);
 
-	my $response = $browser->post(URL,
+	my $response = $browser->post(LastfmXmms2Scrobbler::URL,
 		[
 		'album' => $album,
-		'api_key' => API_KEY,
+		'api_key' => LastfmXmms2Scrobbler::API_KEY,
 		'artist' => $artist,
 		'api_sig' => $api_sig,
 		'method' => $method,
-		'sk' => $sessionkey,
+		'sk' => $LastfmXmms2Scrobbler::sessionkey,
 		'track' => $track
 		],
 	);
@@ -229,23 +72,23 @@ sub scrobble
 
 	my $api_sig = "";
 	$api_sig .= "album" . $album;
-	$api_sig .= "api_key" . API_KEY;
+	$api_sig .= "api_key" . LastfmXmms2Scrobbler::API_KEY;
 	$api_sig .= "artist" . $artist;
 	$api_sig .= "method" . $method;
-	$api_sig .= "sk" . $sessionkey;
+	$api_sig .= "sk" . $LastfmXmms2Scrobbler::sessionkey;
 	$api_sig .= "timestamp" . $timestamp;
 	$api_sig .= "track" . $track;
-	$api_sig .= SECRET;
+	$api_sig .= LastfmXmms2Scrobbler::SECRET;
 	$api_sig = md5_hex($api_sig);
 
-	my $response = $browser->post(URL,
+	my $response = $browser->post(LastfmXmms2Scrobbler::URL,
 		[
 		'album' => $album,
-		'api_key' => API_KEY,
+		'api_key' => LastfmXmms2Scrobbler::API_KEY,
 		'artist' => $artist,
 		'api_sig' => $api_sig,
 		'method' => $method,
-		'sk' => $sessionkey,
+		'sk' => $LastfmXmms2Scrobbler::sessionkey,
 		'timestamp' => $timestamp,
 		'track' => $track
 		],
@@ -255,49 +98,7 @@ sub scrobble
 	die "Error: " . $response->status_line unless $response->is_success;
 }
 
-# Sign in via last.fm API
-#
-sub signIn
-{
-	$token = getTokenFromFile();
-	if ($token eq "") {
-		$token = getToken();
-		writeTokenToFile($token);
-	}
-
-	$sessionkey = getSessionFromFile();
-	if ($sessionkey eq "") {
-		$sessionkey = getSession();
-
-		if ($sessionkey eq "4" ||
-			$sessionkey eq "14") {
-
-			# 4: Invalid authentication token
-			# 14: Unauthorized Token - This token has not been authorized
-			#
-			reauthorize();
-		}
-		 else {
-			writeSessionToFile($sessionkey);
-		}
-	}
-}
-
-sub reauthorize
-{
-	debug("reauthorize", "enter");
-
-	$token = getToken();
-	writeTokenToFile($token);
-
-	requestAuthorization();
-
-	$sessionkey = getSession();
-	writeSessionToFile($sessionkey);
-}
-
-# Scrobble if last.fm conditions are met
-# http://www.last.fm/api/scrobbling
+# Scrobble if Last.fm conditions are met
 #
 sub scrobbleIfNeeded
 {
@@ -349,7 +150,6 @@ sub xmms2_current_id
 
 	debug("xmms2_current_id", "artist: $artist title: $title album: $album duration: $duration s");
 
-	signIn();
 
 	my $now = time();
 
@@ -396,7 +196,10 @@ sub xmms2_playback_status {
 	return 1;
 }
 
+$LastfmXmms2Scrobbler::debug=1;
 debug("main", "Scrobbler starts");
+
+LastfmXmms2Scrobbler::signIn();
 
 # Connect to XMMS2 daemon and establish callbacks
 #
