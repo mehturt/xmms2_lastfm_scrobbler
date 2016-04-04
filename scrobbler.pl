@@ -196,6 +196,12 @@ sub xmms2_playback_status {
 	return 1;
 }
 
+sub xmms2_disconnect_cb {
+	my ($xc) = @_;
+	print "Xmms2 exited, exiting as well.\n";
+	$xc->quit_loop;
+}
+
 $LastfmXmms2Scrobbler::debug=1;
 debug("main", "Scrobbler starts");
 
@@ -208,6 +214,7 @@ if (!$xmms->connect) {
 	die "Connection failed: " . $xmms->get_last_error;
 }
 
+$xmms->disconnect_callback_set( sub { xmms2_disconnect_cb ($xmms) } );
 $xmms->request( broadcast_playback_current_id => sub { xmms2_current_id (@_, $xmms) } );
 $xmms->request( broadcast_playback_status => sub { xmms2_playback_status (@_, $xmms) } );
 

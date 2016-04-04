@@ -41,7 +41,6 @@ Start playing music via `xmms2`.
 
 ## Issues
 
-- Scrobbler goes to an infinite loop once `xmms2 quit` is executed.
 - Scripts do not work without `API_KEY` and `SECRET`. Not sure if I can share those.  Most likely I can because it's also present in the [rhythmbox scrobbler](https://git.gnome.org/browse/rhythmbox/tree/plugins/audioscrobbler/rb-audioscrobbler-service.c)
 - Files with missing / invalid ID3 tags were not tested yet, I expect
   some issues there.
