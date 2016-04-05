@@ -8,21 +8,23 @@ use POSIX qw(strftime);
 use Digest::MD5 qw(md5_hex);
 
 use Exporter 'import';
-our @EXPORT_OK = qw(debug);
+our @EXPORT_OK = qw(debug info warn error);
 
 use constant URL => 'http://ws.audioscrobbler.com/2.0/';
 use constant DIR => "$HOME/.cache/xmms2";
 use constant TOKENFILENAME => DIR . "/lastfmplugin.token";
 use constant SESSIONFILENAME => DIR . "/lastfmplugin.session";
 use constant LOGFILENAME => DIR . "/lastfmplugin.log";
-use constant API_KEY => "";
-use constant SECRET => "";
+# This API key belongs to mehturt <mehturt@gmail.com>
+# generated 2016 for use in the XMMS2 Last.fm plugin
+use constant API_KEY => "64525a1371eaedf15e24bb150fcabc29";
+use constant SECRET => "41abfb889e363ea12ed70a36617cb83d";
 
 our $sessionkey = "";
 our $debug = 0;
 
 my $token = "";
-my $debugfh;
+my $logfh;
 my $browser = LWP::UserAgent->new;
 
 INIT
@@ -30,20 +32,43 @@ INIT
 	system("mkdir -p " . DIR) == 0 or die "Cannot create dir";
 }
 
+sub writelog
+{
+	my ($severity, $method, $text) = @_;
+
+	my $line = "$severity " . strftime("%F %T", localtime) . " $method: $text\n";
+
+	if (!defined $logfh) {
+		open($logfh, ">>", LOGFILENAME) or die "Cannot open file " . LOGFILENAME . " for writing: $!";
+		select( (select($logfh), $| = 1)[0] );
+	}
+
+	print $logfh $line;
+}
+
+sub warn
+{
+	my ($method, $text) = @_;
+	writelog("WARN ", $method, $text);
+}
+
+sub error
+{
+	my ($method, $text) = @_;
+	writelog("ERROR", $method, $text);
+}
+
+sub info
+{
+	my ($method, $text) = @_;
+	writelog("INFO ", $method, $text);
+}
+
 sub debug
 {
 	if ($debug != 0) {
 		my ($method, $text) = @_;
-
-		my $line = "-> " . strftime("%F %T", localtime) . " $method: $text\n";
-
-		if (!defined $debugfh) {
-			open($debugfh, ">>", LOGFILENAME) or die "Cannot open file " . LOGFILENAME . " for writing: $!";
-			select( (select($debugfh), $| = 1)[0] );
-		}
-
-		print $debugfh $line;
-		print $line;
+		writelog("DEBUG", $method, $text);
 	}
 }
 

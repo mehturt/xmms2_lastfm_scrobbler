@@ -1,10 +1,10 @@
-#!/usr/bin/perl -w
+#!/usr/bin/perl -w -I.
 #
 # XMMS2 Last.fm scrobbler
-# http://www.last.fm/api/scrobbling
+# https://github.com/mehturt/xmms2_lastfm_scrobbler
 #
 
-use LastfmXmms2Scrobbler qw(debug);
+use LastfmXmms2Scrobbler qw(debug info warn error);
 use Digest::MD5 qw(md5_hex);
 use Env qw(HOME);
 use Audio::XMMSClient;
@@ -12,6 +12,9 @@ use Audio::XMMSClient;
 
 my $browser = LWP::UserAgent->new;
 my %lastplayed = ( 'artist' => '', 'title' => '', 'album' => '', 'duration' => 0, 'started' => 0);
+
+# Optional notify script for track change
+use constant NOTIFYSCRIPT => "$HOME/bin/xmms2_track_change2.sh";
 
 sub updateNowPlaying
 {
@@ -43,20 +46,13 @@ sub updateNowPlaying
 	);
 
 	debug($method, "Response: " . $response->content);
-	if ($response->content =~ /<error code="(\d+)"/) {
-		my $error_code = $1;
 
-		# error codes:
-		# 9: Invalid session key - Please re-authenticate
-		#
-		if ($error_code eq "9" && !defined $optional_retry) {
-			reauthorize();
-			updateNowPlaying($artist, $track, $album, 'RETRY');
-			return;
-		}
+	if ($response->is_success) {
+		info($method, "Now playing $artist - $track");
 	}
-
-	die "Error: " . $response->status_line unless $response->is_success;
+	else {
+		error($method, "Error: " . $response->status_line);
+	}
 }
 
 sub scrobble
@@ -95,7 +91,13 @@ sub scrobble
 	);
 
 	debug($method, "Response: " . $response->content);
-	die "Error: " . $response->status_line unless $response->is_success;
+
+	if ($response->is_success) {
+		info($method, "Scrobbled $artist - $track");
+	}
+	else {
+		error($method, "Error: " . $response->status_line);
+	}
 }
 
 # Scrobble if Last.fm conditions are met
@@ -127,8 +129,9 @@ sub scrobbleIfNeeded
 sub xmms2_current_id
 {
 	my ($id, $xc) = @_;
+	my $method = "xmms2_current_id";
 
-	debug("xmms2_current_id", "id $id");
+	debug($method, "id $id");
 
 	my $result = $xc->medialib_get_info($id);
 	$result->wait;
@@ -136,7 +139,8 @@ sub xmms2_current_id
 	if ($result->iserror) {
 		# This can return error if the id is not in the medialib
 		#
-		die "medialib get info returns error, " . $result->get_error;
+		error($method, "medialib get info returns error, " . $result->get_error);
+		die;
 	}
 
 	my $minfo = $result->value;
@@ -148,8 +152,15 @@ sub xmms2_current_id
 	my $duration = $minfo->{duration}->{'plugin/mad'} / 1000;
 	my $album = $minfo->{album}->{'plugin/id3v2'};
 
-	debug("xmms2_current_id", "artist: $artist title: $title album: $album duration: $duration s");
+	info("xmms2_current_id", "artist: $artist title: $title album: $album duration: $duration s");
 
+	# Optional notify script for track change
+	#
+	if (-x NOTIFYSCRIPT) {
+		my $notify = NOTIFYSCRIPT . " \"$artist\" \"$title\"";
+		debug($method, "Calling notify script: $notify");
+		system($notify);
+	}
 
 	my $now = time();
 
@@ -198,12 +209,12 @@ sub xmms2_playback_status {
 
 sub xmms2_disconnect_cb {
 	my ($xc) = @_;
-	print "Xmms2 exited, exiting as well.\n";
+	info("main", "Xmms2 exited, exiting as well.");
 	$xc->quit_loop;
 }
 
 $LastfmXmms2Scrobbler::debug=1;
-debug("main", "Scrobbler starts");
+info("main", "Scrobbler starts");
 
 LastfmXmms2Scrobbler::signIn();
 
@@ -211,7 +222,8 @@ LastfmXmms2Scrobbler::signIn();
 #
 my $xmms = Audio::XMMSClient->new('lastfm_scrobbler');
 if (!$xmms->connect) {
-	die "Connection failed: " . $xmms->get_last_error;
+	error("main", "Connection failed: " . $xmms->get_last_error);
+	die;
 }
 
 $xmms->disconnect_callback_set( sub { xmms2_disconnect_cb ($xmms) } );
