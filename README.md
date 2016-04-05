@@ -44,25 +44,17 @@ script, wherever you decide to install it on your machine.
 The following snippet assumes the script is installed in `~/bin`.
 
 ```
-cd ~/.config/xmms2/startup.d
-ln -s ~/bin/scrobbler.pl
+$ cd ~/.config/xmms2/startup.d
+$ ln -s ~/bin/scrobbler.pl
 ```
 
-Also, modify the `scrobbler.pl` so that the -I parameter contains the
+Also, modify the `scrobbler.pl` so that the `-I` parameter contains the
 path where the `LastfmXmms2Scrobbler.pm` is located on your
 filesystem, e.g.:
 
 ```
 #!/usr/bin/perl -w -I/home/user/bin
 ```
-
-### Step 2 - Scrobbling
-
-Once you are authenticated, you can start the scrobbler:
-`./scrobbler.pl`
-
-It will wait for xmms2 to play something and then update your "now
-playing" and once conditions are met, scrobble the track played.
 
 ### Step 3 - Play music
 
@@ -72,7 +64,7 @@ When `xmms2d` is started, the scrobbler script should be running as
 well.  You can check it using `ps`:
 
 ```
-ps -ef | grep scrobbler.pl
+$ ps -ef | grep scrobbler.pl
 ```
 
 Also you should see the following line in the log file:
