@@ -133,50 +133,7 @@ sub xmms2_current_id
 
 	debug($method, "id $id");
 
-	my $result = $xc->medialib_get_info($id);
-	$result->wait;
-
-	if ($result->iserror) {
-		# This can return error if the id is not in the medialib
-		#
-		error($method, "medialib get info returns error, " . $result->get_error);
-		die;
-	}
-
-	my $minfo = $result->value;
-
-	# print Dumper($minfo);
-
-	my $artist = $minfo->{artist}->{'plugin/id3v2'};
-	my $title = $minfo->{title}->{'plugin/id3v2'};
-	my $duration = $minfo->{duration}->{'plugin/mad'} / 1000;
-	my $album = $minfo->{album}->{'plugin/id3v2'};
-
-	info("xmms2_current_id", "artist: $artist title: $title album: $album duration: $duration s");
-
-	# Optional notify script for track change
-	#
-	if (-x NOTIFYSCRIPT) {
-		my $notify = NOTIFYSCRIPT . " \"$artist\" \"$title\"";
-		debug($method, "Calling notify script: $notify");
-		system($notify);
-	}
-
-	my $now = time();
-
-	updateNowPlaying($artist, $title, $album);
-
-	if ($title ne $lastplayed{title}) {
-		scrobbleIfNeeded();
-	}
-
-	%lastplayed = (
-		'artist' => $artist,
-		'title' => $title,
-		'album' => $album,
-		'duration' => $duration,
-		'started' => $now);
-
+	$xc->request( "medialib_get_info", $id, sub { xmms2_mlib_info(@_, $xc) } );
 	return 1;
 }
 
@@ -211,6 +168,50 @@ sub xmms2_disconnect_cb {
 	my ($xc) = @_;
 	info("main", "Xmms2 exited, exiting as well.");
 	$xc->quit_loop;
+}
+
+# Callback for medialib_get_info
+#
+sub xmms2_mlib_info
+{
+	my ($minfo, $xc) = @_;
+	my $method = "xmms2_mlib_info";
+
+	debug($method, "minfo $minfo");
+
+	# print Dumper($minfo);
+
+	my $artist = $minfo->{artist}->{'plugin/id3v2'};
+	my $title = $minfo->{title}->{'plugin/id3v2'};
+	my $duration = $minfo->{duration}->{'plugin/mad'} / 1000;
+	my $album = $minfo->{album}->{'plugin/id3v2'};
+
+	info($method, "artist: $artist title: $title album: $album duration: $duration s");
+
+	# Optional notify script for track change
+	#
+	if (-x NOTIFYSCRIPT) {
+		my $notify = NOTIFYSCRIPT . " \"$artist\" \"$title\"";
+		debug($method, "Calling notify script: $notify");
+		system($notify);
+	}
+
+	my $now = time();
+
+	updateNowPlaying($artist, $title, $album);
+
+	if ($title ne $lastplayed{title}) {
+		scrobbleIfNeeded();
+	}
+
+	%lastplayed = (
+		'artist' => $artist,
+		'title' => $title,
+		'album' => $album,
+		'duration' => $duration,
+		'started' => $now);
+
+	return 1;
 }
 
 $LastfmXmms2Scrobbler::debug=1;
