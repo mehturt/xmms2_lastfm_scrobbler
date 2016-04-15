@@ -181,10 +181,16 @@ sub xmms2_mlib_info
 
 	# print Dumper($minfo);
 
-	my $artist = $minfo->{artist}->{'plugin/id3v2'};
-	my $title = $minfo->{title}->{'plugin/id3v2'};
-	my $duration = $minfo->{duration}->{'plugin/mad'} / 1000;
-	my $album = $minfo->{album}->{'plugin/id3v2'};
+	unless (exists $minfo->{artist} && exists $minfo->{title} && exists $minfo->{duration} && exists $minfo->{album}) {
+		warn($method, "Required mlib data not present, skipping this file.");
+		return 1;
+	}
+
+	my (undef, $artist) = each(%{$minfo->{artist}});
+	my (undef, $title) = each(%{$minfo->{title}});
+	my (undef, $duration) = each(%{$minfo->{duration}});
+	$duration /= 1000;
+	my (undef, $album) = each(%{$minfo->{album}});
 
 	info($method, "artist: $artist title: $title album: $album duration: $duration s");
 

@@ -90,8 +90,7 @@ BEGIN failed--compilation aborted at /home/someusername/.config/xmms2/startup.d/
 
 ## Issues
 
-- Files with missing / invalid ID3 tags were not tested yet, I expect
-  some issues there.
+- None known at the moment.
 
 ## Last.fm API
 
