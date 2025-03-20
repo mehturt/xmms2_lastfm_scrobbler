@@ -105,8 +105,9 @@ sub scrobble
 sub scrobbleIfNeeded
 {
 	my $now = time();
+	my $method = "scrobbleIfNeeded";
 
-	debug("scrobbleIfNeeded", "lastduration " . $lastplayed{duration} . " now $now laststarted " . $lastplayed{started});
+	debug($method, "lastduration " . $lastplayed{duration} . " now $now laststarted " . $lastplayed{started});
 
 	# Scrobble if:
 	# - total length is greater than 30s
@@ -177,8 +178,7 @@ sub xmms2_mlib_info
 	my ($minfo, $xc) = @_;
 	my $method = "xmms2_mlib_info";
 
-	debug($method, "minfo $minfo");
-
+	# debug($method, "minfo " . Dumper($minfo));
 	# print Dumper($minfo);
 
 	unless (exists $minfo->{artist} && exists $minfo->{title} && exists $minfo->{duration} && exists $minfo->{album}) {
@@ -187,7 +187,24 @@ sub xmms2_mlib_info
 	}
 
 	my (undef, $artist) = each(%{$minfo->{artist}});
-	my (undef, $title) = each(%{$minfo->{title}});
+
+	# Find ID3v2 title, or longest title available.
+	#
+	#my (undef, $title) = each(%{$minfo->{title}});
+	my $title = "";
+	my $titleref = $minfo->{title};
+	foreach my $key (keys %{$titleref}) {
+		my $value = ${$titleref}{$key};
+		debug($method, "key: $key value: $value");
+		if ($key eq "plugin/id3v2") {
+			$title = $value;
+			last;
+		}
+		if (length($value) > length($title)) {
+			$title = $value;
+		}
+	}
+
 	my (undef, $duration) = each(%{$minfo->{duration}});
 	$duration /= 1000;
 	my (undef, $album) = each(%{$minfo->{album}});
