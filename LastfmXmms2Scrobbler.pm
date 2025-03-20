@@ -21,7 +21,7 @@ use constant API_KEY => "64525a1371eaedf15e24bb150fcabc29";
 use constant SECRET => "41abfb889e363ea12ed70a36617cb83d";
 
 our $sessionkey = "";
-our $debug = 0;
+our $DEBUG = 0;
 
 my $token = "";
 my $logfh;
@@ -66,7 +66,7 @@ sub info
 
 sub debug
 {
-	if ($debug != 0) {
+	if ($DEBUG != 0) {
 		my ($method, $text) = @_;
 		writelog("DEBUG", $method, $text);
 	}
